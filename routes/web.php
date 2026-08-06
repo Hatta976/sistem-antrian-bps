@@ -62,3 +62,5 @@ Route::middleware(['auth', 'role:Petugas'])->prefix('petugas')->name('petugas.')
     Route::post('/antrian/{id}/selesai', [PetugasController::class, 'selesaikanAntrian'])->name('antrian.selesai');
     Route::post('/petugas/antrian/selesai/{id}', [PetugasController::class, 'selesai'])->name('petugas.antrian.selesai');
 });
+
+    Route::get('/antrian/{id}/cetak', [KiosController::class, 'cetak'])->name('antrian.cetak');

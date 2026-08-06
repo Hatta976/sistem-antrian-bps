@@ -25,13 +25,12 @@ class KiosController extends Controller
         $today = Carbon::today()->toDateString();
         $layanan = Layanan::findOrFail($request->layanan_id);
 
-        // Menentukan Kode Huruf (A untuk layanan 1, B untuk layanan 2, dst jika kolom DB belum diisi)
+        // Menentukan Kode Huruf (A untuk layanan 1, B untuk layanan 2, dst)
         if (!empty($layanan->kode_layanan)) {
             $prefix = strtoupper($layanan->kode_layanan);
         } elseif (!empty($layanan->kode)) {
             $prefix = strtoupper($layanan->kode);
         } else {
-            // Ambil semua ID untuk mencari urutan index (0 = A, 1 = B, dst)
             $allIds = Layanan::pluck('id')->toArray();
             $index = array_search($layanan->id, $allIds);
             $prefix = chr(65 + ($index !== false ? $index : 0));
@@ -46,14 +45,23 @@ class KiosController extends Controller
         $nomorUrut = str_pad($lastAntrian + 1, 3, '0', STR_PAD_LEFT);
         $nomorAntrian = $prefix . '-' . $nomorUrut;
 
-        // Simpan ke database
-        Antrian::create([
+        // Simpan ke database dan tampung ke variabel $antrian
+        $antrian = Antrian::create([
             'layanan_id'    => $layanan->id,
             'nomor_antrian' => $nomorAntrian,
             'tanggal'       => $today,
             'status'        => 'Menunggu',
         ]);
 
-        return back()->with('success', 'Tiket berhasil dicetak! Nomor Anda: ' . $nomorAntrian);
+        // Arahkan langsung ke halaman cetak tiket berdasarkan ID antrean yang baru dibuat
+        return redirect()->route('antrian.cetak', $antrian->id);
+    }
+
+    // METHOD BARU: Menampilkan & mencetak tiket
+    public function cetak($id)
+    {
+        $antrian = Antrian::with('layanan')->findOrFail($id);
+
+        return view('kios.cetak', compact('antrian'));
     }
 }

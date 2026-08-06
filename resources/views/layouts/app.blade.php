@@ -21,10 +21,11 @@
 <body>
 
     <div class="sidebar d-flex flex-column p-3">
-        <div class="d-flex align-items-center mb-4 text-white text-decoration-none px-2">
-            <i class="bi bi-building-fill me-2 fs-3 text-warning"></i>
-            <span class="fs-5 fw-bold">PST BPS Prabumulih</span>
-        </div>
+        <!-- KODE BARU -->
+    <div class="d-flex align-items-center mb-4 text-white text-decoration-none px-2">
+    <img src="{{ asset('img/logobps.png') }}" alt="Logo BPS" style="height: 35px;" class="me-2">
+    <span class="fs-5 fw-bold">PST BPS Prabumulih</span>
+    </div>
         <hr class="text-secondary">
         <ul class="nav nav-pills flex-column mb-auto">
             @if(auth()->user()->isAdmin())

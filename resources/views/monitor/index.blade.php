@@ -12,9 +12,9 @@
     <!-- HEADER -->
     <header class="bg-blue-900 border-b border-blue-700 px-8 py-4 flex justify-between items-center shadow-lg">
         <div class="flex items-center space-x-4">
-            <div class="bg-blue-600 p-3 rounded-lg text-2xl font-bold">
-                BPS
-            </div>
+            <!-- LOGO BPS -->
+            <img src="{{ asset('img/images.jfif') }}" alt="Logo BPS" class="h-12 w-auto object-contain">
+            
             <div>
                 <h1 class="text-2xl font-extrabold tracking-wide">BADAN PUSAT STATISTIK</h1>
                 <p class="text-sm text-blue-200">Sistem Informasi Layanan Antrean Terpadu</p>
