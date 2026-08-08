@@ -16,7 +16,7 @@
             <img src="{{ asset('img/images.jfif') }}" alt="Logo BPS" class="h-12 w-auto object-contain">
             
             <div>
-                <h1 class="text-2xl font-extrabold tracking-wide">BADAN PUSAT STATISTIK</h1>
+                <h1 class="text-2xl font-extrabold tracking-wide">BADAN PUSAT STATISTIK KOTA PRABUMULIH</h1>
                 <p class="text-sm text-blue-200">Sistem Informasi Layanan Antrean Terpadu</p>
             </div>
         </div>
@@ -29,28 +29,39 @@
     <!-- MAIN CONTENT -->
     <main class="flex-1 p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        <!-- PANGGILAN UTAMA (Kiri / 2 Kolom) -->
-        <div class="lg:col-span-2 bg-slate-800 rounded-2xl border border-slate-700 p-8 flex flex-col justify-between shadow-2xl relative overflow-hidden">
-            <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-500 via-yellow-400 to-green-500"></div>
+        <!-- PANGGILAN UTAMA & VIDEO (Kiri / 2 Kolom) -->
+        <div class="lg:col-span-2 bg-slate-800 rounded-2xl border border-slate-700 p-8 flex flex-col justify-between shadow-2xl relative overflow-hidden min-h-[420px]">
+            <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-500 via-yellow-400 to-green-500 z-10"></div>
             
-            <div class="text-center">
-                <span class="bg-blue-600/30 text-blue-400 border border-blue-500/30 px-4 py-1.5 rounded-full text-lg font-semibold uppercase tracking-wider">
-                    Sedang Dipanggil
-                </span>
-                <h2 id="layanan-aktif" class="text-2xl font-bold text-slate-300 mt-4">Belum Ada Panggilan</h2>
-            </div>
+            <!-- TAMPILAN 1: PANGGILAN ANTREAN (Aktif jika data.aktif ada) -->
+            <div id="container-aktif" class="flex flex-col justify-between h-full space-y-6">
+                <div class="text-center">
+                    <span class="bg-blue-600/30 text-blue-400 border border-blue-500/30 px-4 py-1.5 rounded-full text-lg font-semibold uppercase tracking-wider">
+                        Sedang Dipanggil
+                    </span>
+                    <h2 id="layanan-aktif" class="text-2xl font-bold text-slate-300 mt-4">Belum Ada Panggilan</h2>
+                </div>
 
-            <!-- Nomor Antrean Besar -->
-            <div class="text-center my-6">
-                <div id="nomor-aktif" class="text-9xl font-black tracking-wider text-yellow-400 drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)]">
-                    ---
+                <!-- Nomor Antrean Besar -->
+                <div class="text-center my-6">
+                    <div id="nomor-aktif" class="text-9xl font-black tracking-wider text-yellow-400 drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)]">
+                        ---
+                    </div>
+                </div>
+
+                <!-- Loket / Pengunjung Tujuan -->
+                <div class="bg-slate-900/80 rounded-xl p-6 border border-slate-700 text-center">
+                    <p class="text-slate-400 text-lg uppercase tracking-wide">Pengunjung</p>
+                    <h3 id="pengunjung-aktif" class="text-2xl font-extrabold text-green-400 mt-1">-</h3>
                 </div>
             </div>
 
-            <!-- Loket Tujuan -->
-            <div class="bg-slate-900/80 rounded-xl p-6 border border-slate-700 text-center">
-                <p class="text-slate-400 text-lg uppercase tracking-wide">Pengunjung</p>
-                <h3 id="pengunjung-aktif" class="text-2xl font-extrabold text-green-400 mt-1">-</h3>
+            <!-- TAMPILAN 2: VIDEO PLAYER (Aktif jika data.aktif kosong atau error) -->
+            <div id="container-video" class="hidden absolute inset-0 w-full h-full bg-black flex items-center justify-center">
+                <video id="video-player" class="w-full h-full object-cover" autoplay loop playsinline>
+                    <source src="{{ asset('img/video.mp4') }}" type="video/mp4">
+                    Browser Anda tidak mendukung pemutar video.
+                </video>
             </div>
         </div>
 
@@ -94,27 +105,58 @@
         setInterval(updateClock, 1000);
         updateClock();
 
+        // Helper Function untuk Menampilkan Video
+        function tampilkanVideo() {
+            const containerAktif = document.getElementById('container-aktif');
+            const containerVideo = document.getElementById('container-video');
+            const videoPlayer = document.getElementById('video-player');
+
+            if (containerAktif && containerVideo) {
+                containerAktif.classList.add('hidden');
+                containerVideo.classList.remove('hidden');
+
+                if (videoPlayer && videoPlayer.paused) {
+                    videoPlayer.play().catch(err => console.log("Autoplay video ditahan browser:", err));
+                }
+            }
+        }
+
         // 2. Fetch Data dari MonitorController@getData
         async function fetchAntrianData() {
+            const containerAktif = document.getElementById('container-aktif');
+            const containerVideo = document.getElementById('container-video');
+            const videoPlayer = document.getElementById('video-player');
+            const nextContainer = document.getElementById('next-container');
+
             try {
                 const response = await fetch("{{ route('monitor.data') }}");
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP Error! Status: ${response.status}`);
+                }
+
                 const data = await response.json();
 
-                // Update Antrean Aktif
-                if (data.aktif) {
+                // KONDISI 1: ADA ANTREAN DIPANGGIL
+                if (data.aktif && data.aktif.nomor_antrian) {
+                    containerVideo.classList.add('hidden');
+                    containerAktif.classList.remove('hidden');
+                    
+                    if (videoPlayer) {
+                        videoPlayer.pause();
+                    }
+
                     document.getElementById('layanan-aktif').textContent = data.aktif.layanan?.nama_layanan ?? 'Layanan';
                     document.getElementById('nomor-aktif').textContent = data.aktif.nomor_antrian ?? '---';
                     document.getElementById('pengunjung-aktif').textContent = data.aktif.pengunjung?.nama ?? 'Umum';
-                } else {
-                    document.getElementById('layanan-aktif').textContent = 'Belum Ada Panggilan';
-                    document.getElementById('nomor-aktif').textContent = '---';
-                    document.getElementById('pengunjung-aktif').textContent = '-';
+                } 
+                // KONDISI 2: TIDAK ADA ANTREAN DIPANGGIL
+                else {
+                    tampilkanVideo();
                 }
 
-                // Update Antrean Selanjutnya
-                const nextContainer = document.getElementById('next-container');
+                // UPDATE LIST ANTREAN MENUNGGU
                 nextContainer.innerHTML = '';
-
                 if (data.next && data.next.length > 0) {
                     data.next.forEach(item => {
                         const card = document.createElement('div');
@@ -134,6 +176,9 @@
 
             } catch (error) {
                 console.error("Gagal mengambil data antrean:", error);
+                // JIKA FETCH ERROR -> TAMPILKAN VIDEO AGAR TAMPILAN TIDAK STUCK
+                tampilkanVideo();
+                nextContainer.innerHTML = `<div class="bg-slate-800 rounded-xl p-5 text-center text-slate-400">Tidak ada antrean menunggu</div>`;
             }
         }
 

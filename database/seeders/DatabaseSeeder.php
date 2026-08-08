@@ -31,13 +31,12 @@ class DatabaseSeeder extends Seeder
             'password' => Hash::make('password123'),
         ]);
 
-        // 3. Buat Jenis Layanan BPS
+        // 3. Buat 4 Jenis Layanan BPS Sesuai Permintaan
         $layanans = [
-            ['kode_layanan' => 'A', 'nama_layanan' => 'Konsultasi Statistik', 'status' => true],
-            ['kode_layanan' => 'B', 'nama_layanan' => 'Pelayanan Statistik Terpadu (PST)', 'status' => true],
-            ['kode_layanan' => 'C', 'nama_layanan' => 'Permintaan Data', 'status' => true],
-            ['kode_layanan' => 'D', 'nama_layanan' => 'Rekomendasi Statistik', 'status' => true],
-            ['kode_layanan' => 'E', 'nama_layanan' => 'Lainnya', 'status' => true],
+            ['kode_layanan' => 'A', 'nama_layanan' => 'Layanan PST', 'status' => true],
+            ['kode_layanan' => 'B', 'nama_layanan' => 'Layanan Khusus Disabilitas', 'status' => true],
+            ['kode_layanan' => 'C', 'nama_layanan' => 'Layanan Pengaduan', 'status' => true],
+            ['kode_layanan' => 'D', 'nama_layanan' => 'Layanan PPID', 'status' => true],
         ];
 
         foreach ($layanans as $layanan) {
