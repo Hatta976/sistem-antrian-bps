@@ -18,7 +18,8 @@ class Antrian extends Model
         'tanggal',
         'status',
         'waktu_panggil',
-        'waktu_selesai'
+        'waktu_selesai',
+        'loket'
     ];
 
     protected $casts = [

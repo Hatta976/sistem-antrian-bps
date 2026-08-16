@@ -107,4 +107,20 @@ class PetugasController extends Controller
     {
         return $this->selesaikanAntrian($id);
     }
+    public function panggilUlang(Request $request, $id)
+{
+    $antrian = Antrian::findOrFail($id);
+    
+    // Update loket sesuai meja yang dipikirkan/dipilih petugas saat ini
+    if ($request->has('loket')) {
+        $antrian->loket = $request->loket;
+        $antrian->save();
+    }
+
+    return response()->json([
+        'status' => 'success',
+        'message' => 'Memanggil ulang antrean ' . $antrian->nomor_antrian,
+        'antrian' => $antrian
+    ]);
+}
 }

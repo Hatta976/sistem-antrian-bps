@@ -14,7 +14,6 @@
         
         <!-- Header Modern -->
         <div class="bg-gradient-to-r from-blue-900 via-blue-800 to-indigo-900 text-white rounded-3xl p-6 md:p-8 shadow-xl flex flex-col md:flex-row justify-between items-center gap-6 relative overflow-hidden">
-            <!-- Hiasan Blur Background -->
             <div class="absolute -right-10 -bottom-10 w-48 h-48 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
             <div class="absolute -left-10 -top-10 w-48 h-48 bg-blue-500/20 rounded-full blur-2xl pointer-events-none"></div>
 
@@ -53,7 +52,7 @@
                         Area Pemanggilan
                     </h2>
                     
-                    <!-- Form AJAX -->
+                    <!-- Form Panggil Utama -->
                     <form id="formPanggil" action="{{ route('petugas.panggil') }}" method="POST" class="space-y-5">
                         @csrf
                         <div class="space-y-1.5">
@@ -63,9 +62,9 @@
                                     <i class="fas fa-desktop"></i>
                                 </span>
                                 <select name="loket" id="loketSelect" class="w-full bg-slate-50 border border-slate-300 rounded-2xl py-3.5 pl-12 pr-4 text-slate-700 font-semibold focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition">
-                                    <option value="Loket 1">Loket 1</option>
-                                    <option value="Loket 2">Loket 2</option>
-                                    <option value="Loket 3">Loket 3</option>
+                                    <option value="Meja Pelayanan Konsultasi Statistik">Meja Pelayanan Konsultasi Statistik</option>
+                                    <option value="Meja Pelayanan Khusus Disabilitas">Meja Pelayanan Khusus Disabilitas</option>
+                                    <option value="Meja Pelayanan PPID">Meja Pelayanan PPID</option>
                                 </select>
                             </div>
                         </div>
@@ -93,7 +92,7 @@
 
                 <!-- Tombol Tes Suara -->
                 <div class="pt-4 border-t border-slate-100">
-                    <button onclick="playVoice('A-001', 'Loket 1')" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-3 rounded-xl text-xs transition flex items-center justify-center gap-2">
+                    <button onclick="playVoiceTest()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-3 rounded-xl text-xs transition flex items-center justify-center gap-2">
                         <i class="fas fa-vial text-blue-600"></i> Tes Suara Pemanggilan Speaker
                     </button>
                 </div>
@@ -121,12 +120,22 @@
                                     <i class="fas fa-map-marker-alt mr-1 text-blue-600"></i> {{ $antrianDipanggil->loket ?? 'Loket -' }}
                                 </span>
 
-                                <form action="{{ route('petugas.antrian.selesai', $antrianDipanggil->id) }}" method="POST">
-                                    @csrf
-                                    <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-3 rounded-xl text-sm transition shadow-lg shadow-emerald-600/20 flex items-center gap-2 active:scale-95">
-                                        <i class="fas fa-check-circle text-lg"></i> Selesaikan Antrean
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <!-- Tombol Panggil Ulang (Memperbarui Meja Loket Terkini secara Server-Side) -->
+                                    <button type="button" 
+                                            onclick="prosesPanggilUlang('{{ route('petugas.panggilUlang', $antrianDipanggil->id) }}')" 
+                                            class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-5 py-3 rounded-xl text-sm transition shadow-lg shadow-amber-500/20 flex items-center gap-2 active:scale-95">
+                                        <i class="fas fa-redo text-lg"></i> Panggil Ulang
                                     </button>
-                                </form>
+
+                                    <!-- Tombol Selesaikan Antrean -->
+                                    <form action="{{ route('petugas.antrian.selesai', $antrianDipanggil->id) }}" method="POST">
+                                        @csrf
+                                        <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-3 rounded-xl text-sm transition shadow-lg shadow-emerald-600/20 flex items-center gap-2 active:scale-95">
+                                            <i class="fas fa-check-circle text-lg"></i> Selesaikan Antrean
+                                        </button>
+                                    </form>
+                                </div>
                             </div>
                         </div>
                     @else
@@ -252,7 +261,7 @@
         setInterval(updateLiveClock, 1000);
         updateLiveClock();
 
-        // 2. Modul Audio Engine
+        // 2. Audio Engine
         let audioCtx = null;
 
         function unlockAudio() {
@@ -269,29 +278,33 @@
             unlockAudio();
             const now = audioCtx.currentTime;
             
+            const masterGain = audioCtx.createGain();
+            masterGain.gain.setValueAtTime(1.5, now);
+            masterGain.connect(audioCtx.destination);
+
             // Ting
             const osc1 = audioCtx.createOscillator();
             const gain1 = audioCtx.createGain();
             osc1.type = 'sine';
             osc1.frequency.setValueAtTime(659.25, now);
-            gain1.gain.setValueAtTime(0.3, now);
-            gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
+            gain1.gain.setValueAtTime(0.5, now);
+            gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
             osc1.connect(gain1);
-            gain1.connect(audioCtx.destination);
+            gain1.connect(masterGain);
             osc1.start(now);
-            osc1.stop(now + 0.8);
+            osc1.stop(now + 0.9);
 
             // Tong
             const osc2 = audioCtx.createOscillator();
             const gain2 = audioCtx.createGain();
             osc2.type = 'sine';
             osc2.frequency.setValueAtTime(523.25, now + 0.4);
-            gain2.gain.setValueAtTime(0.3, now + 0.4);
-            gain2.gain.exponentialRampToValueAtTime(0.001, now + 1.6);
+            gain2.gain.setValueAtTime(0.5, now + 0.4);
+            gain2.gain.exponentialRampToValueAtTime(0.001, now + 1.8);
             osc2.connect(gain2);
-            gain2.connect(audioCtx.destination);
+            gain2.connect(masterGain);
             osc2.start(now + 0.4);
-            osc2.stop(now + 1.6);
+            osc2.stop(now + 1.8);
 
             setTimeout(() => {
                 if (callback) callback();
@@ -302,8 +315,9 @@
             if ('speechSynthesis' in window) {
                 window.speechSynthesis.cancel();
                 const utterance = new SpeechSynthesisUtterance(teks);
-                utterance.rate = 0.85;
-                utterance.pitch = 1;
+                utterance.rate = 0.82;
+                utterance.pitch = 1.05;
+                utterance.volume = 1.0;
                 utterance.lang = 'id-ID';
 
                 const voices = window.speechSynthesis.getVoices();
@@ -316,11 +330,18 @@
 
         function playVoice(nomor, loket) {
             const parsedNomor = nomor.replace('-', ' '); 
-            const teksPanggilan = `Nomor antrean ${parsedNomor}, silakan menuju ke ${loket}.`;
+            const mejaAktif = loket || document.getElementById('loketSelect').value;
+            const teksPanggilan = `Nomor antrean, ${parsedNomor}, silakan menuju ke ${mejaAktif}`;
+            
             playChime(() => speakText(teksPanggilan));
         }
 
-        // 3. Proses Panggil via AJAX
+        function playVoiceTest() {
+            const loketSelected = document.getElementById('loketSelect').value;
+            playVoice('A-001', loketSelected);
+        }
+
+        // 3. Panggil Baru via Form AJAX
         document.getElementById('formPanggil').addEventListener('submit', function(e) {
             e.preventDefault();
             unlockAudio();
@@ -334,7 +355,8 @@
                 method: 'POST',
                 body: formData,
                 headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                 }
             })
             .then(res => res.json())
@@ -343,8 +365,12 @@
 
                 if (data.status === 'success') {
                     refreshDashboard();
-                    playVoice(data.antrian.nomor_antrian, data.antrian.loket);
                     showAlert('success', data.message);
+
+                    setTimeout(() => {
+                        playVoice(data.antrian.nomor_antrian, data.antrian.loket);
+                    }, 800);
+
                 } else {
                     showAlert('error', data.message || 'Tidak ada antrean tersisa.');
                 }
@@ -354,6 +380,38 @@
                 console.error(err);
             });
         });
+
+        // 4. Panggil Ulang via AJAX (Mengirimkan Meja Loket Terkini ke Server)
+        function prosesPanggilUlang(url) {
+            unlockAudio();
+            const loketDipilih = document.getElementById('loketSelect').value;
+
+            const formData = new FormData();
+            formData.append('_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
+            formData.append('loket', loketDipilih);
+
+            fetch(url, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    refreshDashboard();
+                    showAlert('success', data.message);
+
+                    setTimeout(() => {
+                        playVoice(data.antrian.nomor_antrian, data.antrian.loket);
+                    }, 500);
+                } else {
+                    showAlert('error', data.message || 'Gagal memanggil ulang.');
+                }
+            })
+            .catch(err => console.error(err));
+        }
 
         function refreshDashboard() {
             fetch(window.location.href)
@@ -370,11 +428,15 @@
 
         function showAlert(type, text) {
             const container = document.getElementById('alertContainer');
-            const color = type === 'success' ? 'emerald' : 'rose';
-            const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-triangle';
+            const isSuccess = type === 'success';
+            
+            const bgColor = isSuccess ? 'bg-emerald-100' : 'bg-rose-100';
+            const borderColor = isSuccess ? 'border-emerald-500' : 'border-rose-500';
+            const textColor = isSuccess ? 'text-emerald-800' : 'text-rose-800';
+            const icon = isSuccess ? 'fa-check-circle' : 'fa-exclamation-triangle';
             
             container.innerHTML = `
-                <div class="bg-${color}-100 border-l-4 border-${color}-500 text-${color}-800 p-4 rounded-2xl shadow-sm mb-4 flex items-center font-bold">
+                <div class="${bgColor} border-l-4 ${borderColor} ${textColor} p-4 rounded-2xl shadow-sm mb-4 flex items-center font-bold">
                     <i class="fas ${icon} mr-3 text-lg"></i>${text}
                 </div>
             `;

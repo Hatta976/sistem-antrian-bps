@@ -7,7 +7,19 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
-<body class="bg-slate-900 text-white min-h-screen flex flex-col justify-between font-sans">
+<body class="bg-slate-900 text-white min-h-screen flex flex-col justify-between font-sans relative">
+
+    <!-- OVERLAY UNTUK MEMBUKA BLOKIR SUARA BROWSER -->
+    <div id="start-overlay" class="fixed inset-0 bg-slate-950/90 z-50 flex flex-col items-center justify-center space-y-4">
+        <div class="bg-blue-900 border border-blue-500 p-8 rounded-2xl shadow-2xl text-center max-w-md">
+            <i class="fas fa-volume-up text-5xl text-yellow-400 mb-4 animate-bounce"></i>
+            <h2 class="text-2xl font-bold mb-2">Monitor Antrean Siap</h2>
+            <p class="text-sm text-blue-200 mb-6">Klik tombol di bawah ini untuk mengaktifkan suara dan menjalankan monitor.</p>
+            <button onclick="mulaiMonitor()" class="bg-yellow-400 hover:bg-yellow-500 text-slate-950 font-extrabold px-6 py-3 rounded-xl shadow-lg transition transform hover:scale-105">
+                <i class="fas fa-play mr-2"></i> Mulai Monitor & Aktifkan Suara
+            </button>
+        </div>
+    </div>
 
     <!-- HEADER -->
     <header class="bg-blue-900 border-b border-blue-700 px-8 py-4 flex justify-between items-center shadow-lg">
@@ -33,7 +45,7 @@
         <div class="lg:col-span-2 bg-slate-800 rounded-2xl border border-slate-700 p-8 flex flex-col justify-between shadow-2xl relative overflow-hidden min-h-[420px]">
             <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-500 via-yellow-400 to-green-500 z-10"></div>
             
-            <!-- TAMPILAN 1: PANGGILAN ANTREAN (Aktif jika data.aktif ada) -->
+            <!-- TAMPILAN 1: PANGGILAN ANTREAN -->
             <div id="container-aktif" class="flex flex-col justify-between h-full space-y-6">
                 <div class="text-center">
                     <span class="bg-blue-600/30 text-blue-400 border border-blue-500/30 px-4 py-1.5 rounded-full text-lg font-semibold uppercase tracking-wider">
@@ -56,12 +68,18 @@
                 </div>
             </div>
 
-            <!-- TAMPILAN 2: VIDEO PLAYER (Aktif jika data.aktif kosong atau error) -->
-            <div id="container-video" class="hidden absolute inset-0 w-full h-full bg-black flex items-center justify-center">
-                <video id="video-player" class="w-full h-full object-cover" autoplay loop playsinline>
-                    <source src="{{ asset('img/video.mp4') }}" type="video/mp4">
-                    Browser Anda tidak mendukung pemutar video.
-                </video>
+            <!-- TAMPILAN 2: MEDIA PLAYER (Video Lokal / YouTube / Gambar) -->
+            <div id="container-video" class="hidden absolute object-contain inset-0 w-full h-full bg-black flex items-center justify-center overflow-hidden">
+                <!-- Slot untuk Gambar -->
+                <img id="image-player" class="w-full h-full object-contain bg-black hidden" alt="Slide Media">
+                
+                <!-- Slot untuk Video Lokal (object-cover atau object-contain agar tampilan penuh pas) -->
+                <video id="video-player" class="w-full h-full object-contain bg-black hidden" playsinline loop></video>
+                
+                <!-- Slot untuk YouTube Iframe -->
+                <div id="youtube-container" class="w-full h-full hidden">
+                    <div id="yt-player" class="w-full h-full"></div>
+                </div>
             </div>
         </div>
 
@@ -80,7 +98,7 @@
     </main>
 
     <!-- FOOTER -->
-    <footer class="bg-blue-950 border-t border-blue-900 py-3 px-6 flex items-center overflow-hidden">
+    <footer class="bg-blue-950 border-t border-blue-900 py-3 px-6 flex items-center overflow-hidden pointer-events-none">
         <div class="bg-blue-600 text-white text-xs font-bold uppercase px-3 py-1 rounded mr-4 whitespace-nowrap">
             Informasi
         </div>
@@ -89,9 +107,36 @@
         </marquee>
     </footer>
 
-    <!-- SCRIPT JAM & REALTIME FETCHING -->
+    <!-- SCRIPT -->
     <script>
-        // 1. Update Jam Digital
+        // Playlist: Gambar menggunakan duration (detik), Video Lokal & YouTube otomatis full sampai selesai
+        const playlist = [
+            //{ type: 'image', src: "{{ asset('img/dashboard.png') }}", duration: 5 }, 
+           // { type: 'local', src: "{{ asset('img/contoh1.mp4') }}" }, 
+            //{ type: 'youtube', id: 'VuZ3-du1LJc' },            
+           // { type: 'local', src: "{{ asset('img/video.mp4') }}" },
+            { type: 'local', src: "{{ asset('img/karin.mp4') }}" }
+        ];
+
+        let currentPlaylistIndex = 0;
+        let mediaTimeout = null;
+        let isStarted = false;
+
+        // Load YouTube API Script secara dinamis
+        const tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        const firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+        let ytPlayer = null;
+        function onYouTubeIframeAPIReady() {}
+
+        function mulaiMonitor() {
+            document.getElementById('start-overlay').style.display = 'none';
+            isStarted = true;
+            fetchAntrianData();
+        }
+
         function updateClock() {
             const now = new Date();
             const hours = String(now.getHours()).padStart(2, '0');
@@ -105,57 +150,161 @@
         setInterval(updateClock, 1000);
         updateClock();
 
-        // Helper Function untuk Menampilkan Video
-        function tampilkanVideo() {
-            const containerAktif = document.getElementById('container-aktif');
-            const containerVideo = document.getElementById('container-video');
-            const videoPlayer = document.getElementById('video-player');
+        // Fungsi bantu untuk menghentikan seluruh media (terutama audio YouTube yang sering tertinggal)
+        function stopAllMedia() {
+            const videoEl = document.getElementById('video-player');
+            const ytContainer = document.getElementById('youtube-container');
 
-            if (containerAktif && containerVideo) {
-                containerAktif.classList.add('hidden');
-                containerVideo.classList.remove('hidden');
+            // Pause video lokal
+            if (videoEl) {
+                videoEl.pause();
+                videoEl.currentTime = 0;
+                videoEl.onended = null;
+                videoEl.classList.add('hidden');
+            }
 
-                if (videoPlayer && videoPlayer.paused) {
-                    videoPlayer.play().catch(err => console.log("Autoplay video ditahan browser:", err));
+            // Hentikan YouTube Player jika ada & aktif
+            if (ytPlayer && typeof ytPlayer.stopVideo === 'function') {
+                try {
+                    ytPlayer.stopVideo();
+                } catch (e) {
+                    console.log("Gagal menghentikan YouTube player:", e);
+                }
+            }
+            if (ytContainer) {
+                ytContainer.classList.add('hidden');
+            }
+
+            document.getElementById('image-player').classList.add('hidden');
+            if (mediaTimeout) clearTimeout(mediaTimeout);
+        }
+
+        function playCurrentMedia() {
+            if (!isStarted || playlist.length === 0) return;
+
+            // Bersihkan media sebelumnya terlebih dahulu agar tidak tumpang tindih
+            stopAllMedia();
+
+            const media = playlist[currentPlaylistIndex];
+            const videoEl = document.getElementById('video-player');
+            const imgEl = document.getElementById('image-player');
+            const ytContainer = document.getElementById('youtube-container');
+
+            // 1. Video Lokal
+            if (media.type === 'local') {
+                videoEl.classList.remove('hidden');
+                videoEl.muted = false; 
+
+                if (videoEl.getAttribute('data-src') !== media.src) {
+                    videoEl.src = media.src;
+                    videoEl.setAttribute('data-src', media.src);
+                    videoEl.play().catch(err => console.log("Gagal putar video lokal:", err));
+                } else {
+                    videoEl.play().catch(err => console.log("Gagal lanjut putar video lokal:", err));
+                }
+
+                videoEl.onended = () => {
+                    videoEl.removeAttribute('data-src');
+                    nextMedia();
+                };
+            }
+            // 2. Gambar
+            else if (media.type === 'image') {
+                imgEl.classList.remove('hidden');
+                imgEl.src = media.src;
+
+                mediaTimeout = setTimeout(() => {
+                    nextMedia();
+                }, (media.duration || 5) * 1000);
+            } 
+            // 3. YouTube
+            else if (media.type === 'youtube') {
+                ytContainer.classList.remove('hidden');
+                
+                if (!ytPlayer) {
+                    ytPlayer = new YT.Player('yt-player', {
+                        videoId: media.id,
+                        playerVars: { 
+                            'autoplay': 1, 
+                            'controls': 0, 
+                            'mute': 0,  
+                            'modestbranding': 1,
+                            'rel': 0, 
+                            'iv_load_policy': 3, 
+                            'fs': 0, 
+                            'disablekb': 1 
+                        },
+                        events: {
+                            'onReady': (event) => {
+                                event.target.setPlaybackQuality('hd1080');
+                                event.target.unMute();
+                                event.target.playVideo();
+                            },
+                            'onStateChange': (event) => {
+                                if (event.data === YT.PlayerState.ENDED) {
+                                    nextMedia();
+                                }
+                            }
+                        }
+                    });
+                } else {
+                    ytPlayer.loadVideoById(media.id);
+                    ytPlayer.unMute();
+                    ytPlayer.playVideo();
                 }
             }
         }
 
-        // 2. Fetch Data dari MonitorController@getData
-        async function fetchAntrianData() {
+        function nextMedia() {
+            currentPlaylistIndex = (currentPlaylistIndex + 1) % playlist.length;
+            const containerVideo = document.getElementById('container-video');
+            if (containerVideo && !containerVideo.classList.contains('hidden')) {
+                playCurrentMedia();
+            }
+        }
+
+        function tampilkanVideo() {
+            if (!isStarted) return;
             const containerAktif = document.getElementById('container-aktif');
             const containerVideo = document.getElementById('container-video');
-            const videoPlayer = document.getElementById('video-player');
+
+            if (containerAktif && containerVideo) {
+                if (containerVideo.classList.contains('hidden')) {
+                    containerAktif.classList.add('hidden');
+                    containerVideo.classList.remove('hidden');
+                    playCurrentMedia();
+                }
+            }
+        }
+
+        async function fetchAntrianData() {
+            if (!isStarted) return;
+
+            const containerAktif = document.getElementById('container-aktif');
+            const containerVideo = document.getElementById('container-video');
             const nextContainer = document.getElementById('next-container');
 
             try {
                 const response = await fetch("{{ route('monitor.data') }}");
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP Error! Status: ${response.status}`);
-                }
+                if (!response.ok) throw new Error(`HTTP Error! Status: ${response.status}`);
 
                 const data = await response.json();
 
-                // KONDISI 1: ADA ANTREAN DIPANGGIL
                 if (data.aktif && data.aktif.nomor_antrian) {
+                    // PANGGILAN MASUK: Matikan semua media/video/YouTube agar suara antrean/sistem bersih
+                    stopAllMedia();
+                    
                     containerVideo.classList.add('hidden');
                     containerAktif.classList.remove('hidden');
-                    
-                    if (videoPlayer) {
-                        videoPlayer.pause();
-                    }
 
                     document.getElementById('layanan-aktif').textContent = data.aktif.layanan?.nama_layanan ?? 'Layanan';
                     document.getElementById('nomor-aktif').textContent = data.aktif.nomor_antrian ?? '---';
                     document.getElementById('pengunjung-aktif').textContent = data.aktif.pengunjung?.nama ?? 'Umum';
-                } 
-                // KONDISI 2: TIDAK ADA ANTREAN DIPANGGIL
-                else {
+                } else {
+                    // TIDAK ADA PANGGILAN: Putar video/playlist
                     tampilkanVideo();
                 }
 
-                // UPDATE LIST ANTREAN MENUNGGU
                 nextContainer.innerHTML = '';
                 if (data.next && data.next.length > 0) {
                     data.next.forEach(item => {
@@ -176,15 +325,14 @@
 
             } catch (error) {
                 console.error("Gagal mengambil data antrean:", error);
-                // JIKA FETCH ERROR -> TAMPILKAN VIDEO AGAR TAMPILAN TIDAK STUCK
                 tampilkanVideo();
                 nextContainer.innerHTML = `<div class="bg-slate-800 rounded-xl p-5 text-center text-slate-400">Tidak ada antrean menunggu</div>`;
             }
         }
 
-        // Auto-refresh data tiap 3 detik
-        setInterval(fetchAntrianData, 3000);
-        fetchAntrianData();
+        setInterval(() => {
+            if (isStarted) fetchAntrianData();
+        }, 3000);
     </script>
 </body>
 </html>
